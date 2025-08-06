@@ -7,11 +7,6 @@ import time
 import traceback
 import subprocess
 
-ollama_client = ollama.Client(
-    host="http://ai-gpu-1.elcanet.local/",
-    verify=False
-)
-
 
 def seconds_to_time_format(seconds):
     hours, remainder = divmod(seconds, 3600)
@@ -49,21 +44,14 @@ def extract_and_clean_timestamps(text_chunks):
 
 
 def summarize(prompt, model, summary_prompt):
-    # completion = ollama.chat(
-    #     model=model,
-    #     messages=[
-    #         {"role": "system", "content": summary_prompt},
-    #         {"role": "user", "content": prompt}
-    #     ],
-    # )
-
-    completion = ollama_client.chat(
-        model="gemma3:12b",
+    completion = ollama.chat(
+        model=model,
         messages=[
             {"role": "system", "content": summary_prompt},
             {"role": "user", "content": prompt}
         ],
     )
+
     return completion.message.content
 
 
