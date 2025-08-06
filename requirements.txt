@@ -1,0 +1,11 @@
+ollama
+youtube-transcript-api
+dotenv
+openai-whisper
+groq
+pytubefix
+#openai
+
+fastapi
+uvicorn
+python-multipart
