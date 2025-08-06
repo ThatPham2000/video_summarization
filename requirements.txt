@@ -9,3 +9,4 @@ pytubefix
 fastapi
 uvicorn
 python-multipart
+starlette
