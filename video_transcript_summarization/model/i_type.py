@@ -1,4 +1,5 @@
 import json
+import subprocess
 import uuid
 
 import whisper
@@ -13,9 +14,16 @@ class IType(object):
                  video_path_local=None,
                  supported_languages=None,
                  target_language='auto',
-                 prompt_type='Summarization'):
+                 prompt_type='Summarization',
+                 parallel_api_calls=30,
+                 chunk_size=None,  # will be calculated based on video duration if not provided
+                 overlap_size=20,
+                 max_output_tokens=4096,
+                 ollama_client=None,
+                 whisper_model='turbo'
+                 ):
         if supported_languages is None:
-            supported_languages = ['en', 'vi']
+            supported_languages = ['en', 'vi', 'fr', 'de', 'it', 'gsw', 'rm', 'ja', 'zh',]
 
         self.uuid4 = uuid.uuid4().hex
         self.url = url
@@ -30,6 +38,25 @@ class IType(object):
 
         self.transcription_text = ''
         self.transcript_file_name = ''
+
+        # Parallel API calls (mind rate limits)
+        self.parallel_api_calls = parallel_api_calls
+
+        # Chunk size (tokens) (mind model context length). Higher = less granular summary.
+        # Rule of thumb: 28k for 3h, 10k for 1h, 5k for 30min, 4k for shorter (1k for 6min).
+        self.chunk_size = chunk_size
+
+        # Overlap (tokens) between chunks
+        self.overlap_size = overlap_size
+
+        # Max output tokens of each chunk (mind model limits). Higher = less granular summary.
+        # Rule of thumb: 4k, 2k or 1k depending on content density.
+        # Only use for OpenAI
+        self.max_output_tokens = max_output_tokens
+
+        self.ollama_client = ollama_client
+
+        self.whisper_model = whisper_model
 
     def fetch_video(self):
         pass
@@ -46,8 +73,7 @@ class IType(object):
             # audio_files = audio_chunks
 
         for audio_file_path in audio_files:
-            # model_whisper = whisper.load_model("turbo")
-            model_whisper = whisper.load_model("base")
+            model_whisper = whisper.load_model(self.whisper_model)
 
             transcription = model_whisper.transcribe(
                 audio_file_path,
@@ -71,26 +97,26 @@ class IType(object):
         with open('prompts.json', 'r') as f:
             prompts = json.load(f)
         summary_prompt = prompts[self.prompt_type]
-        print('dmm: ' + summary_prompt)
 
-        # Parallel API calls (mind rate limits)
-        parallel_api_calls = 30
+        # calc chunk size based on model context length
+        if self.chunk_size:
+            chunk_size_per_seconds = 1000 / 6 / 60
+            cmd = [
+                'ffprobe', '-v', 'error', '-show_entries',
+                'format=duration', '-of',
+                'default=noprint_wrappers=1:nokey=1', self.video_path_local
+            ]
+            duration = subprocess.check_output(cmd).decode().strip()
+            print("Duration (seconds):", duration)
+            self.chunk_size = (chunk_size_per_seconds * float(duration)).__floor__()
+            print('Calculated chunk size:', self.chunk_size)
 
-        # Chunk size (tokens) (mind model context length). Higher = less granular summary.
-        # Rule of thumb: 28k for 3h, 10k for 1h, 5k for 30min, 4k for shorter.
-        chunk_size = 1000
-
-        # Overlap (tokens) between chunks
-        overlap_size = 20
-
-        # Max output tokens of each chunk (mind model limits). Higher = less granular summary.
-        # Rule of thumb: 4k, 2k or 1k depending on content density.
-        max_output_tokens = 4096
-
-        return process_and_summarize(self.transcription_text, chunk_size, overlap_size, parallel_api_calls,
-                              self.transcript_file_name,
-                              self.model, summary_prompt,
-                              self.format_timestamp_link)
+        return process_and_summarize(self.transcription_text, self.chunk_size, self.overlap_size,
+                                     self.parallel_api_calls,
+                                     self.transcript_file_name,
+                                     self.model, summary_prompt,
+                                     self.format_timestamp_link,
+                                     self.ollama_client)
 
     def format_timestamp_link(self, timestamp):
         return f"{timestamp}"

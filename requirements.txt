@@ -1,12 +1,14 @@
-ollama
-youtube-transcript-api
-dotenv
-openai-whisper
-groq
-pytubefix
-#openai
+ollama==0.5.1
+youtube-transcript-api==1.2.2
+dotenv==0.9.9
+openai-whisper==20250625
+pytubefix==9.2.2
+fastapi==0.116.1
+uvicorn==0.35.0
+python-multipart==0.0.20
+starlette==0.47.2
+pydantic==2.11.7
+aiofiles==24.1.0
 
-fastapi
-uvicorn
-python-multipart
-starlette
+pyngrok==7.3.0
+nest-asyncio==1.6.0
